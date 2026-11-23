@@ -1,3 +1,29 @@
 #include <windows.h>
 
 101 ICON "../assets/icon.ico"
+
+1 VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+FILEOS          0x40004L
+FILETYPE        0x1L
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904b0"
+    BEGIN
+      VALUE "CompanyName",      "NoteRain"
+      VALUE "FileDescription",  "NoteRain - native piano practice"
+      VALUE "FileVersion",      "1.0.0.0"
+      VALUE "InternalName",     "NoteRain"
+      VALUE "OriginalFilename", "NoteRain.exe"
+      VALUE "ProductName",      "NoteRain"
+      VALUE "ProductVersion",   "1.0.0"
+      VALUE "LegalCopyright",   "GPL-3.0 - derivative of NoteRain (noterain.app)"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END
