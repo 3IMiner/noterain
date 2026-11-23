@@ -8,6 +8,7 @@ import {
   Accidental,
 } from 'vexflow';
 import { useMidiStore } from '../../stores/midiStore';
+import { useI18n } from '../../i18n';
 import styles from './NotesOverlay.module.css';
 
 const OVERLAY_WIDTH = 130;
@@ -162,6 +163,7 @@ export function NotesOverlay() {
   const trebleRef = useRef<HTMLDivElement>(null);
   const bassRef = useRef<HTMLDivElement>(null);
 
+  const { language, chordName } = useI18n();
   const liveNotes = useMidiStore((s) => s.liveNotes);
   const activeNotes = useMidiStore((s) => s.playback.activeNotes);
   const settings = useMidiStore((s) => s.settings);
@@ -330,7 +332,19 @@ export function NotesOverlay() {
         {chord && (
           <div className={styles.chord}>
             <span className={styles.chordRoot}>{chord.root}</span>
-            <span className={styles.chordSuffix}>{chord.suffix}</span>
+            <span
+              className={
+                language === 'zh' ? styles.chordQuality : styles.chordSuffix
+              }
+            >
+              {language === 'zh'
+                ? `${chordName(chord.suffix.split('/')[0])}${
+                    chord.suffix.includes('/')
+                      ? `/${chord.suffix.split('/')[1]}`
+                      : ''
+                  }`
+                : chord.suffix}
+            </span>
           </div>
         )}
         {!chord && allNotes.length > 0 && (

@@ -12,9 +12,15 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Registered manually in `main.tsx` so the desktop build (served from
+      // its own local server) stays service-worker free.
+      injectRegister: null,
       manifest: false, // Use existing manifest.json
       workbox: {
         cleanupOutdatedCaches: true,
+        // The main bundle is well above workbox's 2 MiB default (PixiJS +
+        // VexFlow + Tone.js), so allow precaching it.
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         runtimeCaching: [
           {
@@ -55,5 +61,29 @@ export default defineConfig({
   build: {
     outDir: '../dist/client',
     emptyOutDir: true,
+    // Split the heavy renderer/audio libraries so the shell boots fast and the
+    // service worker can cache each piece independently.
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('pixi.js') || id.includes('@pixi')) return 'pixi';
+          if (id.includes('vexflow')) return 'vexflow';
+          if (id.includes('tone') || id.includes('standardized-audio-context')) {
+            return 'tone';
+          }
+          if (
+            id.includes('/react/') ||
+            id.includes('/react-dom/') ||
+            id.includes('scheduler') ||
+            id.includes('zustand')
+          ) {
+            return 'react';
+          }
+          return 'vendor';
+        },
+      },
+    },
   },
 });

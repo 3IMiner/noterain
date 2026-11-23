@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Play,
   Pause,
@@ -13,10 +13,15 @@ import {
   X,
   Eye,
   EyeOff,
+  FolderOpen,
+  Languages,
+  Piano,
+  Music,
 } from 'lucide-react';
 import { usePlayback } from '../../hooks/usePlayback';
 import { useMidiFile } from '../../hooks/useMidiFile';
 import { useMidiInput } from '../../hooks/useMidiInput';
+import { useI18n } from '../../i18n';
 import {
   useMidiStore,
   getMeasureCount,
@@ -28,10 +33,72 @@ interface ControlsProps {
   isLoadingFullVelocity: boolean;
 }
 
+interface SegmentOption<T extends string> {
+  value: T;
+  label: string;
+  icon?: React.ReactNode;
+}
+
+/** Pill-style radio group used for view/color pickers. */
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: SegmentOption<T>[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className={styles.segmented} role="group">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={`${styles.segment} ${
+            option.value === value ? styles.segmentActive : ''
+          }`}
+          aria-pressed={option.value === value}
+          onClick={() => onChange(option.value)}
+        >
+          {option.icon}
+          <span>{option.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Label + switch combo. */
+function Toggle({
+  checked,
+  onChange,
+  label,
+  title,
+}: {
+  checked: boolean;
+  onChange: () => void;
+  label: string;
+  title?: string;
+}) {
+  return (
+    <label className={styles.toggle} title={title}>
+      <input type="checkbox" checked={checked} onChange={onChange} />
+      <span className={styles.toggleTrack} aria-hidden="true">
+        <span className={styles.toggleThumb} />
+      </span>
+      <span className={styles.toggleLabel}>{label}</span>
+    </label>
+  );
+}
+
 export function Controls({ isLoadingFullVelocity }: ControlsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tracksRef = useRef<HTMLDivElement>(null);
   const [isExpanded, setIsExpanded] = useState(true);
   const [tracksDropdownOpen, setTracksDropdownOpen] = useState(false);
+
+  const { t, language, toggleLanguage } = useI18n();
 
   const {
     isPlaying,
@@ -66,6 +133,18 @@ export function Controls({ isLoadingFullVelocity }: ControlsProps) {
     }
   }, [isPlaying]);
 
+  // Close the tracks dropdown on an outside click
+  useEffect(() => {
+    if (!tracksDropdownOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!tracksRef.current?.contains(event.target as Node)) {
+        setTracksDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [tracksDropdownOpen]);
+
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -81,84 +160,92 @@ export function Controls({ isLoadingFullVelocity }: ControlsProps) {
     return baseName.slice(0, truncatedLength) + '...' + ext;
   };
 
+  const currentMeasure =
+    currentFile && getSecondsPerMeasure(currentFile) > 0
+      ? Math.floor(currentTime / getSecondsPerMeasure(currentFile)) + 1
+      : 0;
+
   return (
-    <div className={styles.controls}>
-      {/* Header row - always visible */}
+    <div className={styles.controls} data-expanded={isExpanded}>
+      {/* ---- Header row (always visible) ---- */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <img
-            src="/logo.png"
-            alt="noterain"
-            className={styles.logo}
-            style={{ background: 'white' }}
-          />
-          {/* File controls */}
-          <div className={styles.section}>
-            <button
-              className={styles.button}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Open MIDI
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".mid,.midi"
-              onChange={handleFileInput}
-              style={{ display: 'none' }}
-            />
-
-            {files.length > 0 && (
-              <select
-                className={styles.select}
-                value={currentFileId || ''}
-                onChange={(e) => setCurrentFile(e.target.value || null)}
-              >
-                <option value="">Select file...</option>
-                {files.map((file) => (
-                  <option key={file.id} value={file.id} title={file.name}>
-                    {truncateFilename(file.name)}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {/* Export button hidden for now
-            {currentFile && (
-              <button className={styles.button} onClick={() => exportFile()}>
-                Export
-              </button>
-            )}
-*/}
+          <div className={styles.brand} title="NoteRain">
+            <img src="/logo.png" alt="" className={styles.logo} />
+            <span className={styles.brandName}>NoteRain</span>
           </div>
+
+          <button
+            className={`${styles.button} ${styles.primary}`}
+            onClick={() => fileInputRef.current?.click()}
+            title={t('controls.openMidi')}
+          >
+            <FolderOpen size={15} />
+            <span>{t('controls.openMidi')}</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".mid,.midi"
+            onChange={handleFileInput}
+            style={{ display: 'none' }}
+          />
+
+          {files.length > 0 && (
+            <select
+              className={styles.select}
+              value={currentFileId || ''}
+              onChange={(e) => setCurrentFile(e.target.value || null)}
+              title={t('controls.fileName')}
+            >
+              <option value="">{t('controls.selectFile')}</option>
+              {files.map((file) => (
+                <option key={file.id} value={file.id} title={file.name}>
+                  {truncateFilename(file.name)}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Playback controls - centered */}
         <div className={styles.headerCenter}>
-          <button
-            className={`${styles.button} ${styles.playButton}`}
-            onClick={togglePlay}
-            disabled={!currentFile}
-          >
-            {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-          </button>
+          <div className={styles.transport}>
+            <button
+              className={`${styles.transportButton} ${styles.playButton}`}
+              onClick={togglePlay}
+              disabled={!currentFile}
+              title={isPlaying ? 'Pause' : 'Play'}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+            >
+              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+            </button>
 
-          <button
-            className={`${styles.button} ${styles.playButton}`}
-            onClick={stop}
-            disabled={!currentFile}
-          >
-            <Square size={16} />
-          </button>
+            <button
+              className={styles.transportButton}
+              onClick={stop}
+              disabled={!currentFile}
+              title="Stop"
+              aria-label="Stop"
+            >
+              <Square size={14} />
+            </button>
+          </div>
 
           <div className={styles.timeDisplay}>
-            {formatTime(currentTime)} / {formatTime(currentFile?.duration || 0)}
+            <span className={styles.time}>
+              {formatTime(currentTime)}
+              <span className={styles.timeTotal}>
+                {' / '}
+                {formatTime(currentFile?.duration || 0)}
+              </span>
+            </span>
             {currentFile && (
               <span className={styles.measureDisplay}>
-                M
-                {Math.floor(currentTime / getSecondsPerMeasure(currentFile)) +
-                  1}
-                /{getMeasureCount(currentFile)}
+                {t('controls.measure', {
+                  current: currentMeasure,
+                  total: getMeasureCount(currentFile),
+                })}
               </span>
             )}
           </div>
@@ -171,6 +258,8 @@ export function Controls({ isLoadingFullVelocity }: ControlsProps) {
             value={getProgress() * 100}
             onChange={(e) => seekToPercent(parseFloat(e.target.value) / 100)}
             disabled={!currentFile}
+            title={t('controls.seek')}
+            aria-label={t('controls.seek')}
           />
         </div>
 
@@ -178,11 +267,20 @@ export function Controls({ isLoadingFullVelocity }: ControlsProps) {
           {/* Volume control */}
           <div className={styles.volumeControl}>
             <button
-              className={`${styles.button} ${styles.iconButton} ${!settings.audioEnabled ? styles.mutedIcon : ''}`}
+              className={`${styles.iconButton} ${!settings.audioEnabled ? styles.mutedIcon : ''}`}
               onClick={() =>
                 updateSettings({ audioEnabled: !settings.audioEnabled })
               }
-              title={settings.audioEnabled ? 'Mute audio' : 'Enable audio'}
+              title={
+                settings.audioEnabled
+                  ? t('controls.muteAudio')
+                  : t('controls.unmuteAudio')
+              }
+              aria-label={
+                settings.audioEnabled
+                  ? t('controls.muteAudio')
+                  : t('controls.unmuteAudio')
+              }
             >
               {settings.audioEnabled ? (
                 <Volume2 size={16} />
@@ -200,20 +298,49 @@ export function Controls({ isLoadingFullVelocity }: ControlsProps) {
                 onChange={(e) =>
                   updateSettings({ volume: parseFloat(e.target.value) / 100 })
                 }
-                title={`Volume: ${Math.round(settings.volume * 100)}%`}
+                title={t('controls.volume', {
+                  percent: Math.round(settings.volume * 100),
+                })}
+                aria-label={t('controls.volume', {
+                  percent: Math.round(settings.volume * 100),
+                })}
               />
             )}
           </div>
 
+          {/* Language toggle */}
+          <button
+            className={styles.chip}
+            onClick={toggleLanguage}
+            title={
+              language === 'zh'
+                ? t('common.switchToEnglish')
+                : t('common.switchToChinese')
+            }
+            aria-label={t('common.language')}
+          >
+            <Languages size={14} />
+            <span>{language === 'zh' ? '中' : 'EN'}</span>
+          </button>
+
           {/* Theme toggle */}
           <button
-            className={`${styles.button} ${styles.iconButton}`}
+            className={styles.iconButton}
             onClick={() =>
               updateSettings({
                 theme: settings.theme === 'mocha' ? 'latte' : 'mocha',
               })
             }
-            title={`Switch to ${settings.theme === 'mocha' ? 'light' : 'dark'} theme`}
+            title={
+              settings.theme === 'mocha'
+                ? t('controls.themeToLight')
+                : t('controls.themeToDark')
+            }
+            aria-label={
+              settings.theme === 'mocha'
+                ? t('controls.themeToLight')
+                : t('controls.themeToDark')
+            }
           >
             {settings.theme === 'mocha' ? (
               <Sun size={16} />
@@ -224,56 +351,87 @@ export function Controls({ isLoadingFullVelocity }: ControlsProps) {
 
           {/* Toggle expand button */}
           <button
-            className={`${styles.button} ${styles.iconButton}`}
+            className={styles.iconButton}
             onClick={() => setIsExpanded(!isExpanded)}
-            title={isExpanded ? 'Hide controls' : 'Show controls'}
+            title={isExpanded ? t('controls.collapse') : t('controls.expand')}
+            aria-label={isExpanded ? t('controls.collapse') : t('controls.expand')}
+            aria-expanded={isExpanded}
           >
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
         </div>
       </div>
 
-      {/* Expanded grid content */}
+      {/* ---- Expanded panel ---- */}
       {isExpanded && (
-        <div className={styles.grid}>
-          {/* Render mode toggle */}
-          <div className={styles.gridItem}>
-            <button
-              className={`${styles.button} ${styles.viewButton} ${!settings.showSheetMusic ? styles.active : ''}`}
-              onClick={() => updateSettings({ showSheetMusic: false })}
-            >
-              Falling Notes
-            </button>
-            <button
-              className={`${styles.button} ${styles.viewButton} ${settings.showSheetMusic ? styles.active : ''}`}
-              onClick={() => updateSettings({ showSheetMusic: true })}
-            >
-              Sheet Music
-            </button>
+        <div className={styles.panel}>
+          {/* View + colors */}
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>{t('controls.view')}</span>
+            <Segmented
+              value={settings.showSheetMusic ? 'sheet' : 'falling'}
+              onChange={(value) =>
+                updateSettings({ showSheetMusic: value === 'sheet' })
+              }
+              options={[
+                {
+                  value: 'falling',
+                  label: t('controls.viewFalling'),
+                  icon: <Piano size={14} />,
+                },
+                {
+                  value: 'sheet',
+                  label: t('controls.viewSheet'),
+                  icon: <Music size={14} />,
+                },
+              ]}
+            />
+            {!settings.showSheetMusic && (
+              <>
+                <span className={styles.groupDivider} />
+                <span className={styles.groupLabel}>{t('controls.colors')}</span>
+                <Segmented
+                  value={settings.noteColorMode}
+                  onChange={(value) =>
+                    updateSettings({ noteColorMode: value as 'track' | 'pitch' })
+                  }
+                  options={[
+                    {
+                      value: 'track' as const,
+                      label: t('controls.colorByTrack'),
+                    },
+                    {
+                      value: 'pitch' as const,
+                      label: t('controls.colorByPitch'),
+                    },
+                  ]}
+                />
+              </>
+            )}
           </div>
 
-          {/* Wait mode toggle */}
-          <div className={styles.gridItem}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={waitMode}
-                onChange={toggleWaitMode}
-              />
-              Wait for input
-            </label>
+          {/* Practice */}
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>{t('controls.practice')}</span>
+
+            <Toggle
+              checked={waitMode}
+              onChange={toggleWaitMode}
+              label={t('controls.waitForInput')}
+            />
+
             {waitMode && (
-              <>
-                <label className={styles.label}>Grace:</label>
+              <label className={styles.inlineField}>
+                <span className={styles.fieldLabel}>{t('controls.grace')}</span>
                 <select
-                  className={styles.select}
+                  className={styles.selectSmall}
                   value={settings.waitModeGracePeriod}
                   onChange={(e) =>
                     updateSettings({
                       waitModeGracePeriod: parseInt(e.target.value),
                     })
                   }
-                  title="Grace period for early note hits"
+                  title={t('controls.graceTitle')}
                 >
                   {[0, 50, 100, 150, 200, 250, 300, 350, 400, 450, 500].map(
                     (ms) => (
@@ -283,176 +441,153 @@ export function Controls({ isLoadingFullVelocity }: ControlsProps) {
                     ),
                   )}
                 </select>
+              </label>
+            )}
+
+            <span className={styles.groupDivider} />
+
+            <label className={styles.inlineField}>
+              <span className={styles.fieldLabel}>{t('controls.speed')}</span>
+              <input
+                type="number"
+                className={styles.numberInput}
+                min="10"
+                max="200"
+                step="5"
+                value={Math.round(speed * 100)}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  if (!isNaN(val)) {
+                    setSpeed(Math.max(10, Math.min(200, val)) / 100);
+                  }
+                }}
+              />
+              <span className={styles.fieldLabel}>{t('controls.speedUnit')}</span>
+            </label>
+
+            {currentFile && (
+              <>
+                <span className={styles.groupDivider} />
+                <span className={styles.fieldLabel}>{t('controls.loop')}</span>
+                <button
+                  className={`${styles.iconSmall} ${loopEnabled ? styles.active : ''}`}
+                  onClick={toggleLoop}
+                  title={t('controls.loopToggle')}
+                  aria-label={t('controls.loopToggle')}
+                >
+                  <Repeat size={14} />
+                </button>
+                {loopEnabled && (
+                  <>
+                    <input
+                      type="number"
+                      className={styles.measureInput}
+                      min="1"
+                      max={getMeasureCount(currentFile)}
+                      value={(loopStartMeasure ?? 0) + 1}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) - 1;
+                        if (!isNaN(val)) {
+                          setLoopRange(Math.max(0, val), loopEndMeasure);
+                        }
+                      }}
+                      title={t('controls.loopStart')}
+                      aria-label={t('controls.loopStart')}
+                    />
+                    <span className={styles.loopSeparator}>–</span>
+                    <input
+                      type="number"
+                      className={styles.measureInput}
+                      min="1"
+                      max={getMeasureCount(currentFile)}
+                      value={(loopEndMeasure ?? 0) + 1}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value) - 1;
+                        if (!isNaN(val)) {
+                          const maxMeasure = getMeasureCount(currentFile) - 1;
+                          setLoopRange(
+                            loopStartMeasure,
+                            Math.min(val, maxMeasure),
+                          );
+                        }
+                      }}
+                      title={t('controls.loopEnd')}
+                      aria-label={t('controls.loopEnd')}
+                    />
+                    <button
+                      className={styles.iconSmall}
+                      onClick={clearLoop}
+                      title={t('controls.loopClear')}
+                      aria-label={t('controls.loopClear')}
+                    >
+                      <X size={13} />
+                    </button>
+                  </>
+                )}
               </>
             )}
           </div>
 
-          {/* Fit keyboard to song toggle */}
-          <div className={styles.gridItem}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={settings.fitKeyboardToSong}
-                onChange={() =>
-                  updateSettings({
-                    fitKeyboardToSong: !settings.fitKeyboardToSong,
-                  })
-                }
-              />
-              Fit keyboard to song
-            </label>
-          </div>
-
-          {/* Play MIDI input audio toggle */}
-          <div className={styles.gridItem}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={settings.playMidiInputAudio}
-                onChange={() =>
-                  updateSettings({
-                    playMidiInputAudio: !settings.playMidiInputAudio,
-                  })
-                }
-              />
-              Play MIDI input
-              {isLoadingFullVelocity && (
-                <span className={styles.loadingIndicator}>
-                  Loading samples...
-                </span>
-              )}
-            </label>
-          </div>
-
-          {/* Notes overlay toggle */}
-          <div className={styles.gridItem}>
-            <label className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                checked={settings.showNotesOverlay}
-                onChange={() =>
-                  updateSettings({
-                    showNotesOverlay: !settings.showNotesOverlay,
-                  })
-                }
-              />
-              Show notes/chords
-            </label>
-          </div>
-
-          {/* Speed control */}
-          <div className={styles.gridItem}>
-            <label className={styles.label}>Speed:</label>
-            <input
-              type="number"
-              className={styles.speedInput}
-              min="10"
-              max="200"
-              step="5"
-              value={Math.round(speed * 100)}
-              onChange={(e) => {
-                const val = parseInt(e.target.value);
-                if (!isNaN(val)) {
-                  setSpeed(Math.max(10, Math.min(200, val)) / 100);
-                }
-              }}
+          {/* Display */}
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>{t('controls.display')}</span>
+            <Toggle
+              checked={settings.showNotesOverlay}
+              onChange={() =>
+                updateSettings({
+                  showNotesOverlay: !settings.showNotesOverlay,
+                })
+              }
+              label={t('controls.showNotesOverlay')}
             />
-            <span className={styles.label}>%</span>
+            <Toggle
+              checked={settings.fitKeyboardToSong}
+              onChange={() =>
+                updateSettings({
+                  fitKeyboardToSong: !settings.fitKeyboardToSong,
+                })
+              }
+              label={t('controls.fitKeyboard')}
+            />
           </div>
 
-          {/* Loop controls */}
-          {currentFile && (
-            <div className={styles.gridItem}>
-              <label className={styles.label}>Loop:</label>
-              <button
-                className={`${styles.button} ${loopEnabled ? styles.active : ''}`}
-                onClick={toggleLoop}
-                title="Toggle loop"
-              >
-                <Repeat size={16} />
-              </button>
-              {loopEnabled && (
-                <>
-                  <input
-                    type="number"
-                    className={styles.measureInput}
-                    min="1"
-                    max={getMeasureCount(currentFile)}
-                    value={(loopStartMeasure ?? 0) + 1}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) - 1;
-                      if (!isNaN(val)) {
-                        setLoopRange(Math.max(0, val), loopEndMeasure);
-                      }
-                    }}
-                    title="Loop start measure"
-                  />
-                  <span className={styles.loopSeparator}>-</span>
-                  <input
-                    type="number"
-                    className={styles.measureInput}
-                    min="1"
-                    max={getMeasureCount(currentFile)}
-                    value={(loopEndMeasure ?? 0) + 1}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value) - 1;
-                      if (!isNaN(val)) {
-                        const maxMeasure = getMeasureCount(currentFile) - 1;
-                        setLoopRange(
-                          loopStartMeasure,
-                          Math.min(val, maxMeasure),
-                        );
-                      }
-                    }}
-                    title="Loop end measure"
-                  />
-                  <button
-                    className={styles.button}
-                    onClick={clearLoop}
-                    title="Clear loop"
-                  >
-                    <X size={14} />
-                  </button>
-                </>
-              )}
-            </div>
-          )}
+          {/* Sound */}
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>{t('controls.sound')}</span>
+            <Toggle
+              checked={settings.playMidiInputAudio}
+              onChange={() =>
+                updateSettings({
+                  playMidiInputAudio: !settings.playMidiInputAudio,
+                })
+              }
+              label={t('controls.playMidiInput')}
+            />
+            {isLoadingFullVelocity && (
+              <span className={styles.loadingIndicator}>
+                <span className={styles.spinner} />
+                {t('controls.loadingSamples')}
+              </span>
+            )}
+          </div>
 
-          {/* Note color mode toggle (only for falling notes view) */}
-          {!settings.showSheetMusic && (
-            <div className={styles.gridItem}>
-              <label className={styles.label}>Colors:</label>
-              <button
-                className={`${styles.button} ${settings.noteColorMode === 'track' ? styles.active : ''}`}
-                onClick={() => updateSettings({ noteColorMode: 'track' })}
-                title="Color notes by track"
-              >
-                Track
-              </button>
-              <button
-                className={`${styles.button} ${settings.noteColorMode === 'pitch' ? styles.active : ''}`}
-                onClick={() => updateSettings({ noteColorMode: 'pitch' })}
-                title="Color notes by pitch (C, D, E, etc.)"
-              >
-                Pitch
-              </button>
-            </div>
-          )}
-
-          {/* MIDI input selector */}
-          <div className={styles.gridItem}>
-            <label className={styles.label}>MIDI Input:</label>
+          {/* MIDI devices */}
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>{t('controls.devices')}</span>
             {!isEnabled ? (
-              <span className={styles.warning}>MIDI not available</span>
+              <span className={styles.warning}>
+                {t('controls.midiUnavailable')}
+              </span>
             ) : inputs.length === 0 ? (
-              <span className={styles.muted}>No devices</span>
+              <span className={styles.muted}>{t('controls.noDevices')}</span>
             ) : (
               <select
-                className={styles.select}
+                className={styles.selectSmall}
                 value={selectedInput?.id || ''}
                 onChange={(e) => selectInput(e.target.value || null)}
+                title={t('controls.midiInput')}
               >
-                <option value="">None</option>
+                <option value="">{t('controls.none')}</option>
                 {inputs.map((device) => (
                   <option key={device.id} value={device.id}>
                     {device.name}
@@ -463,140 +598,172 @@ export function Controls({ isLoadingFullVelocity }: ControlsProps) {
           </div>
 
           {/* Track list - inline for 2 or fewer, dropdown for more */}
-          {currentFile &&
-            currentFile.tracks.length > 0 &&
-            currentFile.tracks.length <= 2 &&
-            currentFile.tracks.map((track) => (
-              <div
-                key={track.index}
-                className={styles.gridItem}
-                style={{
-                  borderLeftColor: track.color,
-                  borderLeftWidth: 3,
-                  borderLeftStyle: 'solid',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={track.enabled}
-                  onChange={() =>
-                    useMidiStore
-                      .getState()
-                      .toggleTrack(currentFile.id, track.index)
-                  }
-                />
-                <span className={styles.trackName}>{track.name}</span>
-                <button
-                  className={`${styles.trackButton} ${track.renderOnly || track.enabled ? styles.active : styles.crossed}`}
-                  onClick={() =>
-                    useMidiStore
-                      .getState()
-                      .toggleTrackRenderOnly(currentFile.id, track.index)
-                  }
-                  title={
-                    track.renderOnly ? 'Hide track' : 'Show track visually'
-                  }
-                  disabled={track.enabled}
-                >
-                  {track.renderOnly || track.enabled ? (
-                    <Eye size={14} />
-                  ) : (
-                    <EyeOff size={14} />
-                  )}
-                </button>
-                <button
-                  className={`${styles.trackButton} ${track.playAudio ? styles.active : styles.crossed}`}
-                  onClick={() =>
-                    useMidiStore
-                      .getState()
-                      .toggleTrackPlayAudio(currentFile.id, track.index)
-                  }
-                  title={track.playAudio ? 'Mute track' : 'Play track audio'}
-                >
-                  {track.playAudio ? (
-                    <Volume2 size={14} />
-                  ) : (
-                    <VolumeX size={14} />
-                  )}
-                </button>
-              </div>
-            ))}
+          {currentFile && currentFile.tracks.length > 0 && (
+            <div
+              className={`${styles.group} ${styles.tracksGroup}`}
+              ref={tracksRef}
+            >
+              <span className={styles.groupLabel}>
+                {t('controls.tracks', { count: currentFile.tracks.length })}
+              </span>
 
-          {/* Tracks dropdown for more than 2 tracks */}
-          {currentFile && currentFile.tracks.length > 2 && (
-            <div className={`${styles.gridItem} ${styles.tracksContainer}`}>
-              <button
-                className={`${styles.button} ${tracksDropdownOpen ? styles.active : ''}`}
-                onClick={() => setTracksDropdownOpen(!tracksDropdownOpen)}
-              >
-                Tracks ({currentFile.tracks.length}){' '}
-                {tracksDropdownOpen ? (
-                  <ChevronUp size={14} />
-                ) : (
-                  <ChevronDown size={14} />
-                )}
-              </button>
-              {tracksDropdownOpen && (
-                <div className={styles.tracksDropdown}>
-                  {currentFile.tracks.map((track) => (
-                    <div
-                      key={track.index}
-                      className={styles.trackItem}
-                      style={{
-                        borderLeftColor: track.color,
-                        borderLeftWidth: 3,
-                        borderLeftStyle: 'solid',
-                      }}
+              {currentFile.tracks.length <= 2 &&
+                currentFile.tracks.map((track) => (
+                  <div
+                    key={track.index}
+                    className={styles.trackRow}
+                    style={{ borderLeftColor: track.color }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={track.enabled}
+                      onChange={() =>
+                        useMidiStore
+                          .getState()
+                          .toggleTrack(currentFile.id, track.index)
+                      }
+                      title={t('controls.trackEnable')}
+                    />
+                    <span className={styles.trackName}>{track.name}</span>
+                    <button
+                      className={`${styles.trackButton} ${track.renderOnly || track.enabled ? styles.active : styles.crossed}`}
+                      onClick={() =>
+                        useMidiStore
+                          .getState()
+                          .toggleTrackRenderOnly(currentFile.id, track.index)
+                      }
+                      title={
+                        track.renderOnly
+                          ? t('controls.trackHide')
+                          : t('controls.trackShow')
+                      }
+                      aria-label={
+                        track.renderOnly
+                          ? t('controls.trackHide')
+                          : t('controls.trackShow')
+                      }
+                      disabled={track.enabled}
                     >
-                      <input
-                        type="checkbox"
-                        checked={track.enabled}
-                        onChange={() =>
-                          useMidiStore
-                            .getState()
-                            .toggleTrack(currentFile.id, track.index)
-                        }
-                      />
-                      <span className={styles.trackName}>{track.name}</span>
-                      <button
-                        className={`${styles.trackButton} ${track.renderOnly || track.enabled ? styles.active : styles.crossed}`}
-                        onClick={() =>
-                          useMidiStore
-                            .getState()
-                            .toggleTrackRenderOnly(currentFile.id, track.index)
-                        }
-                        title={
-                          track.renderOnly
-                            ? 'Hide track'
-                            : 'Show track visually'
-                        }
-                        disabled={track.enabled}
-                      >
-                        {track.renderOnly || track.enabled ? (
-                          <Eye size={14} />
-                        ) : (
-                          <EyeOff size={14} />
-                        )}
-                      </button>
-                      <button
-                        className={`${styles.trackButton} ${track.playAudio ? styles.active : styles.crossed}`}
-                        onClick={() =>
-                          useMidiStore
-                            .getState()
-                            .toggleTrackPlayAudio(currentFile.id, track.index)
-                        }
-                        title={
-                          track.playAudio ? 'Mute track' : 'Play track audio'
-                        }
-                      >
-                        {track.playAudio ? (
-                          <Volume2 size={14} />
-                        ) : (
-                          <VolumeX size={14} />
-                        )}
-                      </button>
+                      {track.renderOnly || track.enabled ? (
+                        <Eye size={14} />
+                      ) : (
+                        <EyeOff size={14} />
+                      )}
+                    </button>
+                    <button
+                      className={`${styles.trackButton} ${track.playAudio ? styles.active : styles.crossed}`}
+                      onClick={() =>
+                        useMidiStore
+                          .getState()
+                          .toggleTrackPlayAudio(currentFile.id, track.index)
+                      }
+                      title={
+                        track.playAudio
+                          ? t('controls.trackMute')
+                          : t('controls.trackPlay')
+                      }
+                      aria-label={
+                        track.playAudio
+                          ? t('controls.trackMute')
+                          : t('controls.trackPlay')
+                      }
+                    >
+                      {track.playAudio ? (
+                        <Volume2 size={14} />
+                      ) : (
+                        <VolumeX size={14} />
+                      )}
+                    </button>
+                  </div>
+                ))}
+
+              {currentFile.tracks.length > 2 && (
+                <div className={styles.tracksDropdownWrap}>
+                  <button
+                    className={`${styles.button} ${styles.small} ${
+                      tracksDropdownOpen ? styles.active : ''
+                    }`}
+                    onClick={() => setTracksDropdownOpen(!tracksDropdownOpen)}
+                    aria-expanded={tracksDropdownOpen}
+                  >
+                    <span>
+                      {t('controls.tracks', {
+                        count: currentFile.tracks.length,
+                      })}
+                    </span>
+                    {tracksDropdownOpen ? (
+                      <ChevronUp size={14} />
+                    ) : (
+                      <ChevronDown size={14} />
+                    )}
+                  </button>
+                  {tracksDropdownOpen && (
+                    <div className={styles.tracksDropdown}>
+                      {currentFile.tracks.map((track) => (
+                        <div
+                          key={track.index}
+                          className={styles.trackItem}
+                          style={{ borderLeftColor: track.color }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={track.enabled}
+                            onChange={() =>
+                              useMidiStore
+                                .getState()
+                                .toggleTrack(currentFile.id, track.index)
+                            }
+                          />
+                          <span className={styles.trackName}>{track.name}</span>
+                          <button
+                            className={`${styles.trackButton} ${track.renderOnly || track.enabled ? styles.active : styles.crossed}`}
+                            onClick={() =>
+                              useMidiStore
+                                .getState()
+                                .toggleTrackRenderOnly(
+                                  currentFile.id,
+                                  track.index,
+                                )
+                            }
+                            title={
+                              track.renderOnly
+                                ? t('controls.trackHide')
+                                : t('controls.trackShow')
+                            }
+                            disabled={track.enabled}
+                          >
+                            {track.renderOnly || track.enabled ? (
+                              <Eye size={14} />
+                            ) : (
+                              <EyeOff size={14} />
+                            )}
+                          </button>
+                          <button
+                            className={`${styles.trackButton} ${track.playAudio ? styles.active : styles.crossed}`}
+                            onClick={() =>
+                              useMidiStore
+                                .getState()
+                                .toggleTrackPlayAudio(
+                                  currentFile.id,
+                                  track.index,
+                                )
+                            }
+                            title={
+                              track.playAudio
+                                ? t('controls.trackMute')
+                                : t('controls.trackPlay')
+                            }
+                          >
+                            {track.playAudio ? (
+                              <Volume2 size={14} />
+                            ) : (
+                              <VolumeX size={14} />
+                            )}
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
             </div>

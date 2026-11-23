@@ -36,6 +36,15 @@ const NOTE_TEX_SIZE = 16;
 const BITMAP_FONT_MAIN = 'noteLabel';
 const BITMAP_FONT_ACC = 'noteLabelAcc';
 
+/** Debug overlays (FPS counter) are opt-in via localStorage. */
+function isDebugEnabled(): boolean {
+  try {
+    return localStorage.getItem('noterain:debug') === '1';
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Pure helpers
 // ---------------------------------------------------------------------------
@@ -286,33 +295,35 @@ export class FallingNotesRenderer {
     // Cap frame rate
     app.ticker.maxFPS = 60;
 
-    // FPS counter
-    const fpsText = new Text({
-      text: 'FPS: --',
-      style: new TextStyle({
-        fontFamily: 'monospace',
-        fontSize: 12,
-        fill: theme === 'latte' ? '#4c4f69' : '#a6adc8',
-      }),
-    });
-    fpsText.x = app.screen.width - 70;
-    fpsText.y = 8;
-    fpsText.alpha = 0.7;
-    app.stage.addChild(fpsText);
-    this.fpsText = fpsText;
+    // FPS counter — only when debugging is opted in
+    // (`localStorage.setItem('noterain:debug', '1')` then reload).
+    if (isDebugEnabled()) {
+      const fpsText = new Text({
+        text: 'FPS: --',
+        style: new TextStyle({
+          fontFamily: 'monospace',
+          fontSize: 12,
+          fill: theme === 'latte' ? '#4c4f69' : '#a6adc8',
+        }),
+      });
+      fpsText.x = app.screen.width - 70;
+      fpsText.y = 8;
+      fpsText.alpha = 0.7;
+      app.stage.addChild(fpsText);
+      this.fpsText = fpsText;
 
-    // FPS ticker
-    let fpsElapsed = 0;
-    this.fpsTickerFn = (ticker: { deltaMS: number }) => {
-      fpsElapsed += ticker.deltaMS;
-      if (fpsElapsed >= 500) {
-        fpsElapsed = 0;
-        if (this.fpsText && this.app) {
-          this.fpsText.text = `FPS: ${this.app.ticker.FPS.toFixed(0)}`;
+      let fpsElapsed = 0;
+      this.fpsTickerFn = (ticker: { deltaMS: number }) => {
+        fpsElapsed += ticker.deltaMS;
+        if (fpsElapsed >= 500) {
+          fpsElapsed = 0;
+          if (this.fpsText && this.app) {
+            this.fpsText.text = `FPS: ${this.app.ticker.FPS.toFixed(0)}`;
+          }
         }
-      }
-    };
-    app.ticker.add(this.fpsTickerFn);
+      };
+      app.ticker.add(this.fpsTickerFn);
+    }
 
     // Render ticker
     this.renderTickerFn = () => this.renderNotes();

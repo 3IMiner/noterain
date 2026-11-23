@@ -14,19 +14,170 @@
   overflow: hidden;
 }
 
+/* --- Empty state / drop zone -------------------------------------------- */
+
 .empty-state {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  font-size: 16px;
-  text-align: center;
-  padding: 20px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow: auto;
 }
 
-.empty-state p {
+.drop-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 520px;
+  padding: 36px 44px 28px;
+  text-align: center;
+  border: 1.5px dashed var(--border-color);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg-surface) 72%, transparent);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.empty-state:hover .drop-card {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-color));
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.14);
+  transform: translateY(-1px);
+}
+
+.drop-icon {
+  color: var(--accent);
+  opacity: 0.9;
+  margin-bottom: 2px;
+}
+
+.drop-title {
   margin: 0;
-  max-width: 400px;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--text-primary);
+}
+
+.drop-hint {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin: 8px 0 4px;
+}
+
+.empty-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.07s ease;
+}
+
+.empty-button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.empty-button:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.empty-button.cta {
+  background: var(--accent);
+  border: 1px solid transparent;
+  color: var(--on-accent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.empty-button.cta:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.empty-button.ghost {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.empty-button.ghost:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--bg-surface);
+}
+
+.drop-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.drop-shortcuts {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  opacity: 0.85;
+}
+
+@media (max-width: 560px) {
+  .drop-card {
+    padding: 26px 20px 20px;
+    gap: 8px;
+  }
+
+  .drop-shortcuts {
+    display: none;
+  }
+}
+
+/* --- Drag overlay -------------------------------------------------------- */
+
+.drag-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--bg-base) 62%, transparent);
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+  animation: dragFadeIn 0.12s ease-out;
+}
+
+@keyframes dragFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.drag-overlay-inner {
+  padding: 34px 56px;
+  border: 2px dashed var(--accent);
+  border-radius: 20px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
 }

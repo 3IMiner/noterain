@@ -1,7 +1,14 @@
 .git
+.gitignore
 *.log
 *.md
 .env*
 coverage
 .vscode
 .idea
+node_modules
+client/node_modules
+desktop
+release
+dist
+.dsh-pilot

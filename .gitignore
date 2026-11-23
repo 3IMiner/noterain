@@ -1,8 +1,15 @@
 # Dependencies
 node_modules/
+desktop/node_modules/
 
 # Build output
 dist/
+release/
+noterain-native/build/
+noterain-native/.vs/
+
+# Local logs
+*.log
 
 # Lock files (optional - can include if desired)
 bun.lock
@@ -25,4 +32,5 @@ bun.lock
 # SSL certificates
 certs/
 
-# Deployment
+# DSH pilot artifacts
+.dsh-pilot/

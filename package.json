@@ -1,31 +1,31 @@
 {
   "name": "noterain",
   "version": "0.0.1",
-  "description": "",
+  "description": "NoteRain - MIDI player and piano learning tool (web + desktop)",
   "author": "",
   "private": true,
   "license": "GPL-3.0",
-  "workspaces": [
-    "client"
-  ],
   "scripts": {
-    "build": "nest build && bun run build:client",
+    "install:all": "npm install && npm --prefix client install",
+    "build": "npm run build:server && npm run build:client",
     "build:server": "nest build",
-    "build:client": "bun run --cwd client build",
+    "build:client": "npm --prefix client run build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"client/src/**/*.{ts,tsx}\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
-    "start:prod": "bun dist/main.js",
-    "dev": "concurrently \"bun run start:dev\" \"bun run dev:client\"",
-    "dev:client": "bun run --cwd client dev",
+    "start:prod": "node dist/main.js",
+    "dev": "concurrently \"npm run start:dev\" \"npm run dev:client\"",
+    "dev:client": "npm --prefix client run dev",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "lint:client": "bun run --cwd client lint",
+    "lint:client": "npm --prefix client run lint",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:debug": "bun --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "desktop:dev": "npm --prefix desktop run dev",
+    "desktop:build": "npm run build:client && npm --prefix desktop run dist",
+    "desktop:dir": "npm run build:client && npm --prefix desktop run dist:dir"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

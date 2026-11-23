@@ -1,0 +1,88 @@
+{
+  "name": "noterain-desktop",
+  "productName": "NoteRain",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NoteRain desktop — MIDI player & piano practice tool",
+  "author": {
+    "name": "NoteRain"
+  },
+  "license": "GPL-3.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "make-icon": "python scripts/make-icon.py",
+    "dist": "electron-builder --win --x64",
+    "dist:dir": "electron-builder --win --dir"
+  },
+  "devDependencies": {
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "app.noterain.desktop",
+    "productName": "NoteRain",
+    "copyright": "Copyright © 2026 NoteRain · GPL-3.0",
+    "directories": {
+      "output": "../release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "build/icon.png",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist/client",
+        "to": "client"
+      }
+    ],
+    "asar": true,
+    "compression": "normal",
+    "electronDist": "node_modules/electron/dist",
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NoteRain",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "language": "2052",
+      "installerLanguages": ["zh_CN", "en_US"],
+      "artifactName": "NoteRain-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "NoteRain-Portable-${version}.${ext}",
+      "requestExecutionLevel": "user"
+    },
+    "fileAssociations": [
+      {
+        "ext": ["mid", "midi"],
+        "name": "MIDI File",
+        "description": "MIDI file",
+        "role": "Editor",
+        "icon": "build/icon.ico"
+      }
+    ]
+  }
+}

@@ -1,13 +1,16 @@
-FROM oven/bun:1 AS deps
+# ---- deps ----------------------------------------------------------------
+FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 
-# Install all dependencies (workspaces: root + client)
-COPY package.json bun.lock ./
+# Backend and client are installed separately (no npm workspaces, so the image
+# builds on any filesystem).
+COPY package.json ./
 COPY client/package.json ./client/
-RUN bun install --frozen-lockfile
+RUN npm install --no-audit --no-fund \
+    && npm --prefix client install --no-audit --no-fund
 
-# Build stage
-FROM oven/bun:1 AS builder
+# ---- build ---------------------------------------------------------------
+FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -15,22 +18,21 @@ COPY --from=deps /app/client/node_modules ./client/node_modules
 COPY . .
 
 # Build backend (NestJS) and client (Vite)
-RUN bun run build
+RUN npm run build
 
-# Production image
-FROM oven/bun:1-alpine AS runner
+# ---- runtime -------------------------------------------------------------
+FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nestjs
+RUN groupadd --system --gid 1001 nodejs \
+    && useradd --system --uid 1001 --gid nodejs nestjs
 
-# Copy built backend and install production deps fresh (avoids broken workspace symlinks)
+# Copy built backend, then install only production dependencies
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
-COPY --chown=nestjs:nodejs package.json bun.lock ./
-COPY --from=builder /app/client/package.json ./client/
-RUN bun install --frozen-lockfile --production
+COPY --chown=nestjs:nodejs package.json ./
+RUN npm install --omit=dev --no-audit --no-fund
 
 USER nestjs
 
@@ -39,4 +41,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV FORCE_HTTP=true
 
-CMD ["bun", "dist/main.js"]
+CMD ["node", "dist/main.js"]

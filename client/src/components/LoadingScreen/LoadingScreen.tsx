@@ -1,3 +1,4 @@
+import { useI18n } from '../../i18n';
 import styles from './LoadingScreen.module.css';
 
 type LoadingPhase = 'downloading' | 'decoding' | 'done';
@@ -17,18 +18,27 @@ export function LoadingScreen({
   totalSamples,
   totalLayers,
 }: LoadingScreenProps) {
+  const { t } = useI18n();
+
   const isDownloading = phase === 'downloading';
   const progress = isDownloading ? downloadProgress : decodeProgress;
   const total = isDownloading ? totalSamples : totalLayers;
-  const percentage = Math.round((progress / total) * 100);
+  const percentage = total > 0 ? Math.round((progress / total) * 100) : 0;
 
   return (
     <div className={styles.overlay}>
       <div className={styles.container}>
+        <img src="/logo.png" alt="" className={styles.logo} />
         <div className={styles.title}>
-          {isDownloading ? 'Downloading Piano Samples' : 'Decoding Piano Samples'}
+          {isDownloading ? t('loading.downloading') : t('loading.decoding')}
         </div>
-        <div className={styles.progressBar}>
+        <div
+          className={styles.progressBar}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={percentage}
+        >
           <div
             className={styles.progressFill}
             style={{ width: `${percentage}%` }}
@@ -36,9 +46,10 @@ export function LoadingScreen({
         </div>
         <div className={styles.progressText}>
           {isDownloading
-            ? `${progress} / ${total} samples`
-            : `${progress} / ${total} velocity layers`}
+            ? t('loading.samples', { progress, total })
+            : t('loading.layers', { progress, total })}
         </div>
+        <div className={styles.hint}>{t('loading.hint')}</div>
       </div>
     </div>
   );

@@ -8,6 +8,22 @@
 
 A modern web-based MIDI player and piano learning tool with falling notes visualization, sheet music rendering, and MIDI keyboard support.
 
+Runs as a web app **and** as a standalone Windows desktop application (`.exe`), with a full **简体中文 / English** interface.
+
+## 衍生版本说明 / Derivative notice
+
+本仓库是基于 **NoteRain**（[noterain.app](https://noterain.app)，GPL-3.0）上游源码修改的衍生版本，修改时间 2026-11。
+主要改动：
+
+- 完整简体中文界面（`client/src/i18n/`，默认跟随系统语言）
+- 新增 **C++ 原生桌面版**（[`noterain-native/`](noterain-native/)，Direct2D + WASAPI + winmm，无第三方依赖）
+- 新增 Electron 打包与独立 exe（[`desktop/`](desktop/)、[`release/`](release/)）
+- 小键盘音域窗口：25/32/37/49 键控制器可用（窗口跟随、键位对齐、音域外自动伴奏）
+- 构建脚本从 bun 改为 npm，前后端分开安装；Dockerfile 同步重写
+- 练习模式改进：等待按键的分数统计、错音反馈、循环后自动提速
+
+原项目版权归原作者所有；本衍生版同样以 **GPL-3.0** 发布，见 [LICENSE](LICENSE)。
+
 ## Screenshots
 
 ![Falling Notes](images/fallingnotes.png)
@@ -74,6 +90,11 @@ A modern web-based MIDI player and piano learning tool with falling notes visual
 - **One Dark** - Dark theme based on Atom's One Dark
 - **Latte** - Light theme based on Catppuccin Latte
 
+### Localization
+- **English / 简体中文** - Switch with the language chip in the toolbar
+- Follows the system/browser language on first launch
+- Chord names, tooltips, loading screen and desktop menus are localized too
+
 ### File Management
 - Open MIDI files via file picker or drag-and-drop
 - Multiple file support with easy switching
@@ -88,17 +109,24 @@ A modern web-based MIDI player and piano learning tool with falling notes visual
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ or Bun
+- Node.js 18+ (npm is used by the scripts; Bun works too)
 - A modern browser with WebMIDI support (Chrome, Edge, Opera)
 
 ### Installation
 
-```bash
-# Install dependencies
-bun install
+The frontend and the backend are installed separately (no npm workspaces — that
+keeps the repo installable on FAT32/exFAT drives, where npm cannot create the
+workspace symlinks):
 
-# Start development server
-bun run dev
+```bash
+# Install backend dependencies
+npm install
+
+# Install frontend dependencies
+npm --prefix client install
+
+# Start development server (API + Vite dev server)
+npm run dev
 ```
 
 The app runs at `http://localhost:5173` (client) with the API server at `http://localhost:3000`.
@@ -107,17 +135,42 @@ The app runs at `http://localhost:5173` (client) with the API server at `http://
 
 ```bash
 # Build both client and server
-bun run build
+npm run build
 
 # Start production server
-bun run start:prod
+npm run start:prod
 ```
+
+### Desktop App (Windows `.exe`)
+
+The desktop build wraps the same frontend in Electron and serves it from a
+loopback HTTP server (required for WebMIDI, which needs a secure context).
+
+```bash
+# Build the client, then package the installer + portable exe
+npm run desktop:build
+
+# Only create an unpacked app folder (fast, no installers)
+npm run desktop:dir
+```
+
+Artifacts land in `release/`:
+
+| File | Description |
+| --- | --- |
+| `NoteRain-Setup-<version>.exe` | NSIS installer (per-user, custom install dir, desktop/start-menu shortcuts, `.mid` file association) |
+| `NoteRain-Portable-<version>.exe` | Single-file portable build — no installation needed |
+| `win-unpacked/NoteRain.exe` | Unpacked app folder |
+
+The desktop shell adds a native menu (Open MIDI…, zoom, dev tools, about),
+`Ctrl+O` to open a file, drag & drop, and opening `.mid` files from the
+command line or "Open with".
 
 ### Docker
 
 ```bash
 # Build and run with Docker
-bun run build
+npm run build
 docker build -t noterain .
 docker run -p 3000:3000 noterain
 ```
@@ -131,6 +184,20 @@ docker run -p 3000:3000 noterain
 5. **Set a loop** (optional) - Enter start/end measure numbers to practice a section
 6. **Press Play** - Watch, listen, and learn!
 
+### Keyboard shortcuts
+
+| Key | Action |
+| --- | --- |
+| `Space` | Play / pause |
+| `←` / `→` | Seek −5 s / +5 s |
+| `↑` / `↓` | Speed +5 % / −5 % |
+| `K` | Stop |
+| `L` | Toggle measure loop |
+| `M` | Mute / unmute |
+| `Ctrl+O` (desktop) | Open a MIDI file |
+
+Shortcuts are ignored while typing in a form field.
+
 ## Tech Stack
 
 - **Frontend**: React 19, TypeScript, Vite
@@ -139,25 +206,31 @@ docker run -p 3000:3000 noterain
 - **MIDI**: WebMIDI API, midi-file parser
 - **State**: Zustand with localStorage persistence
 - **Backend**: NestJS (serves static files and API)
+- **Desktop**: Electron + electron-builder (NSIS installer & portable exe)
 
 ## Project Structure
 
 ```
-piano/
+noterain/
 ├── client/                 # React frontend
 │   ├── src/
 │   │   ├── components/     # UI components
-│   │   │   ├── Controls/   # Playback controls, settings
+│   │   │   ├── Controls/   # Playback controls, settings panel
 │   │   │   ├── FallingNotes/   # PixiJS visualization
 │   │   │   ├── PianoKeyboard/  # Interactive keyboard
 │   │   │   └── SheetMusic/     # VexFlow notation
 │   │   ├── hooks/          # Custom React hooks
-│   │   ├── lib/            # MIDI parsing, audio
+│   │   ├── i18n/           # UI strings (English / 简体中文)
+│   │   ├── lib/            # MIDI parsing, audio engine, desktop bridge
 │   │   ├── stores/         # Zustand state management
 │   │   └── types/          # TypeScript types
-│   └── public/             # Static assets
+│   └── public/             # Static assets (piano samples, demo song)
+├── desktop/                # Electron shell (main / preload / builder config)
+│   ├── build/              # App icons
+│   └── scripts/            # Icon generation
 ├── src/                    # NestJS backend
-└── dist/                   # Production build output
+├── dist/                   # Production build output
+└── release/                # Packaged desktop artifacts
 ```
 
 ## Attributions

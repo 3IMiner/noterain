@@ -1,3 +1,5 @@
+import { detectLanguage } from '../i18n/messages';
+
 /** A single MIDI note with timing and velocity */
 export interface MidiNote {
   /** MIDI note number (0-127, middle C = 60) */
@@ -121,6 +123,9 @@ export interface PlaybackState {
 /** Theme options */
 export type Theme = 'mocha' | 'latte';
 
+/** UI language */
+export type Lang = 'en' | 'zh';
+
 /** Note coloring mode */
 export type NoteColorMode = 'track' | 'pitch';
 
@@ -154,6 +159,8 @@ export interface Settings {
   waitModeGracePeriod: number;
   /** Show overlay with current notes and chord names */
   showNotesOverlay: boolean;
+  /** UI language */
+  language: Lang;
 }
 
 /** Default settings */
@@ -172,6 +179,8 @@ export const DEFAULT_SETTINGS: Settings = {
   playMidiInputAudio: true,
   waitModeGracePeriod: 400,
   showNotesOverlay: false,
+  // Follow the browser/OS language on first launch, then remember the choice.
+  language: detectLanguage(),
 };
 
 /** Colors for each pitch class (C, C#, D, ... B) - distinct rainbow spectrum */

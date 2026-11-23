@@ -531,12 +531,23 @@ export const useMidiStore = create<MidiStore>()(
     }),
     {
       name: 'piano-storage',
+      version: 2,
       partialize: (state) => ({
         // Don't persist files - they contain too much note data and exceed localStorage quota
         selectedInputId: state.selectedInputId,
         selectedOutputId: state.selectedOutputId,
         settings: state.settings,
       }),
+      // Shallow-merge settings so keys added in later versions (e.g. `language`)
+      // keep their defaults instead of becoming `undefined` for returning users.
+      merge: (persisted, current) => {
+        const saved = (persisted ?? {}) as Partial<MidiStore>;
+        return {
+          ...current,
+          ...saved,
+          settings: { ...current.settings, ...(saved.settings ?? {}) },
+        };
+      },
     },
   ),
 );
